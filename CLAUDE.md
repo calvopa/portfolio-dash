@@ -20,6 +20,7 @@ tenencias. Tema **Panel Oscuro** de Pablo.
 | Precios CEDEARs / acciones / bonos / ONs / letras | `data912.com/live/arg_cedears`, `arg_stocks`, `arg_bonds`, `arg_corp`, `arg_notes` (~20 min de demora) |
 | Dólar MEP hoy | `dolarapi.com/v1/dolares/bolsa` (promedio compra/venta); respaldo: AL30 / AL30D de data912 |
 | Dólar MEP histórico | `api.argentinadatos.com/v1/cotizaciones/dolares/bolsa` (desde 2018, con huecos en feriados) |
+| Benchmark "¿te conviene?" | `data912.com/historical/usa_stocks/SPY` (cierres diarios en US$ desde 2016, **ajustados por dividendos**; `BENCHMARK` en config) |
 | Fondos (FCI) | **sin precio en vivo**: se usa el del último import (marcado `import` en la tabla) |
 
 ## Gotchas del Excel de Balanz (verificados con un export real)
@@ -36,6 +37,14 @@ tenencias. Tema **Panel Oscuro** de Pablo.
   en varias veces; no incluye cupones ni dividendos cobrados.
 - El **nombre del archivo** trae titular y números de cuenta: no se guarda, solo la fecha (`[AAAAMMDD]`).
   Tampoco se guarda el archivo: solo las filas parseadas en `portfolio.db`.
+
+## Comparación "¿te conviene invertir así?"
+
+`valuacion._comparacion()`: para cada activo con costo en US$, qué valdrían hoy esos mismos dólares si en la
+fecha de compra estimada se hubieran puesto en el SPY (`bench_usd`), o dejado quietos en MEP (= el costo).
+La columna `vs_bench_usd` de la tabla es `valor_usd - bench_usd`. Es exigente con la cartera: el SPY va con
+dividendos reinvertidos y la cartera sin cupones/dividendos cobrados. Un CEDEAR de SPY puede salir distinto
+de 0 contra el SPY por la diferencia CCL/MEP y la fecha estimada.
 
 ## Infraestructura
 

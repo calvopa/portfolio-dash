@@ -13,7 +13,7 @@
     --surface-100: #0a0a0c; --surface-200: #121214; --surface-300: #1b1b1f; --surface-hover: #222226;
     --border-subtle: #2a2a2f;
     --ink-100: #f5f5f7; --ink-200: #b8b8c0; --ink-300: #7a7a84;
-    --brand-primary: #7c5cff; --brand-primary-hover: #9177ff; --brand-primary-ink: #ffffff;
+    --brand-primary: #7c5cff; --brand-primary-hover: #9177ff; --brand-primary-press: #6646f0; --brand-primary-ink: #ffffff;
     --accent-soft: #2a2140; --danger: #ff4d5e; --focus-ring: #7c5cff;
     --up: #3ecf8e;  /* solo para la flecha ▲ (el número va en tinta, con signo) */
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -32,7 +32,7 @@
   .btn { display: inline-flex; align-items: center; gap: 8px; font: 600 14px var(--font-sans); border: none;
          border-radius: var(--radius-md); padding: 10px 16px; cursor: pointer; background: var(--brand-primary);
          color: var(--brand-primary-ink); transition: background .15s ease; }
-  .btn:hover { background: var(--brand-primary-hover); }
+  .btn:hover { background: var(--brand-primary-press); }  /* más oscuro: con blanco encima mantiene contraste */
   .btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
   .card { background: var(--surface-300); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg);
           box-shadow: var(--shadow-card); padding: 20px 24px; min-width: 0; }
@@ -70,7 +70,7 @@
   @media (max-width: 640px) {
     /* se queda con Activo, Valor US$, Hoy y Resultado US$ */
     th:nth-child(2), td:nth-child(2), th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4),
-    th:nth-child(6), td:nth-child(6), th:nth-child(9), td:nth-child(9) { display: none; }
+    th:nth-child(6), td:nth-child(6), th:nth-child(9), td:nth-child(9), th:nth-child(10), td:nth-child(10) { display: none; }
     th, td { padding: 8px 4px; }
     .desc { max-width: 92px; }
     table { font-size: 13px; }
@@ -78,6 +78,13 @@
     .card { padding: 16px 10px; }
     .wrap { padding-left: 12px; padding-right: 12px; }
   }
+  .chart-cmp { height: 170px; }
+  .cmp-listas { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  .cmp-listas ul { list-style: none; margin: 0; padding: 0; font-variant-numeric: tabular-nums; }
+  .cmp-listas li { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--surface-hover); }
+  .cmp-listas li span:first-child { font-weight: 600; }
+  #cmp-veredicto { font-size: 16px; line-height: 22px; margin-bottom: 6px; }
+  #cmp-detalle { font-size: 13px; line-height: 19px; }
   .nota { font-size: 12px; color: var(--ink-200); margin-top: 16px; line-height: 18px; }
 </style>
 </head>
@@ -103,6 +110,22 @@
       <div class="card"><div class="kpi-label">Resultado en pesos</div><div class="kpi-value" id="k-res-ars">—</div><div class="kpi-sub">nominal: incluye la suba del dólar</div></div>
     </div>
 
+    <div class="grid2" id="cmp" hidden>
+      <div class="card">
+        <h2>¿Te conviene invertir así?</h2>
+        <div class="caption" id="cmp-sub">—</div>
+        <div class="chart-box chart-cmp"><canvas id="ch-cmp" aria-label="Tu cartera comparada con alternativas"></canvas></div>
+      </div>
+      <div class="card">
+        <h2 id="cmp-veredicto">—</h2>
+        <div class="caption" id="cmp-detalle">—</div>
+        <div class="cmp-listas">
+          <div><div class="kpi-label">Le ganaron al <span class="bm">S&amp;P 500</span></div><ul id="cmp-ganan"></ul></div>
+          <div><div class="kpi-label">Rindieron menos que el <span class="bm">S&amp;P 500</span></div><ul id="cmp-pierden"></ul></div>
+        </div>
+      </div>
+    </div>
+
     <div class="grid2">
       <div class="card">
         <h2>Distribución por tipo</h2>
@@ -123,14 +146,16 @@
         <thead><tr>
           <th data-k="ticker">Activo</th><th data-k="tipo">Tipo</th><th data-k="cantidad">Cantidad</th>
           <th data-k="precio">Precio</th><th data-k="valor_usd">Valor US$</th><th data-k="peso">% cartera</th>
-          <th data-k="pct_hoy">Hoy</th><th data-k="resultado_usd">Resultado US$</th><th data-k="resultado_ars">Resultado $</th>
+          <th data-k="pct_hoy">Hoy</th><th data-k="resultado_usd">Resultado US$</th><th data-k="resultado_ars">Resultado $</th><th data-k="vs_bench_usd" title="Cuánto más (o menos) que si esa plata hubiera ido al S&amp;P 500 en la misma fecha">vs. S&amp;P 500</th>
         </tr></thead>
         <tbody id="tbody"></tbody>
       </table></div>
       <div class="nota">
         <b>Resultado en dólares (aprox.):</b> costo en pesos de Balanz convertido al dólar MEP del día de compra estimado
         (fecha de la tenencia menos los "días promedio de tenencia"). Si compraste en varias veces, es una aproximación.
-        No incluye cupones ni dividendos cobrados. <b>Resultado en pesos:</b> el que muestra Balanz, nominal.
+        No incluye cupones ni dividendos cobrados. <b>vs. S&amp;P 500:</b> diferencia contra haber puesto esos mismos
+        dólares en el ETF SPY en la misma fecha estimada (el SPY se toma con dividendos reinvertidos, así que la comparación
+        es exigente con tu cartera). <b>Resultado en pesos:</b> el que muestra Balanz, nominal.
         Precios: data912 (con ~20 min de demora en horario de mercado); los marcados <span class="badge">import</span>
         usan el precio del archivo importado.
       </div>
@@ -164,7 +189,7 @@ Chart.defaults.font.size = 11;
 const tooltip = { backgroundColor: C('--surface-200'), borderColor: C('--border-subtle'), borderWidth: 1,
                   titleColor: C('--ink-100'), bodyColor: C('--ink-200'), padding: 10, cornerRadius: 8, displayColors: false };
 
-let chTipo, chHist, datos, orden = {k: 'valor_usd', asc: false};
+let chTipo, chHist, chCmp, datos, orden = {k: 'valor_usd', asc: false};
 
 function toast(msg, ms = 4000) {
   const t = document.getElementById('toast'); t.textContent = msg; t.style.display = 'block';
@@ -218,10 +243,56 @@ function pintar(d) {
       ctx.restore(); } }],
   });
 
+  pintarCmp(d.comparacion);
+
   const ti = d.totales.sin_precio_vivo;
   document.getElementById('t-sub').textContent = `${d.activos.length} instrumentos` +
     (ti.length ? ` · sin precio en vivo: ${ti.join(', ')} (se usa el del archivo)` : ' · todos con precio en vivo');
   tabla();
+}
+
+// "¿Te conviene?": la misma plata, en las mismas fechas, en tres lugares. Una sola medida (US$ hoy):
+// tu cartera en el violeta de acento, las alternativas en gris para que se lea como referencia.
+function pintarCmp(c) {
+  document.getElementById('cmp').hidden = !c;
+  if (!c) return;
+  const desde = new Date(c.desde + 'T12:00').toLocaleDateString('es-AR', {month: 'long', year: 'numeric'});
+  document.getElementById('cmp-sub').textContent =
+    `Pusiste ${usd(c.invertido_usd)} (en dólares MEP del día de cada compra, desde ${desde}). Qué valen hoy:`;
+  const filas = [
+    {n: 'Tu cartera', v: c.cartera_usd, color: C('--brand-primary')},
+    {n: 'S&P 500', v: c.bench_usd, color: C('--ink-300')},
+    {n: 'Dólares quietos', v: c.dolar_usd, color: C('--ink-300')},
+  ];
+  if (chCmp) chCmp.destroy();
+  chCmp = new Chart(document.getElementById('ch-cmp'), {
+    type: 'bar',
+    data: { labels: filas.map(x => x.n), datasets: [{ data: filas.map(x => x.v), backgroundColor: filas.map(x => x.color),
+            borderRadius: 4, borderSkipped: 'start', barThickness: 20 }] },
+    options: { indexAxis: 'y', maintainAspectRatio: false, responsive: true, layout: { padding: { right: 84 } },
+      plugins: { legend: { display: false },
+        tooltip: { ...tooltip, callbacks: { label: ctx => `${usd(ctx.raw)} · ${pct(ctx.raw / c.invertido_usd - 1)} sobre lo invertido` } } },
+      scales: { x: { display: false, min: 0, max: Math.max(...filas.map(x => x.v)) * 1.02 },
+                y: { grid: { display: false }, border: { display: false }, ticks: { color: C('--ink-100') },
+                     afterFit: s => { s.width = Math.max(s.width, 108); } } } },
+    plugins: [{ id: 'etiquetas', afterDatasetsDraw(ch) {
+      const {ctx} = ch; ctx.save(); ctx.fillStyle = C('--ink-100'); ctx.font = `600 12px ${C('--font-sans')}`; ctx.textBaseline = 'middle';
+      ch.getDatasetMeta(0).data.forEach((b, i) => ctx.fillText(usd(filas[i].v), b.x + 8, b.y));
+      ctx.restore(); } }],
+  });
+
+  const vsDolar = c.cartera_usd - c.dolar_usd, vsBench = c.cartera_usd - c.bench_usd;
+  const ver = vsBench >= 0 && vsDolar >= 0 ? 'Sí: le ganás al dólar y al S&P 500'
+            : vsDolar >= 0 ? 'Le ganás al dólar, pero no al S&P 500'
+            : 'Hoy rendirías más con los dólares quietos';
+  document.getElementById('cmp-veredicto').textContent = ver;
+  document.getElementById('cmp-detalle').textContent =
+    `Contra dejar los dólares quietos: ${conSigno(n => usd(n), vsDolar)}. ` +
+    `Contra haber comprado solo S&P 500: ${conSigno(n => usd(n), vsBench)}.`;
+  const li = xs => xs.length ? xs.slice(0, 5).map(x => `<li><span>${esc(x.ticker)}</span><span>${conSigno(n => usd(n), x.usd)}</span></li>`).join('')
+                             : '<li class="muted">ninguno</li>';
+  document.getElementById('cmp-ganan').innerHTML = li(c.ganan);
+  document.getElementById('cmp-pierden').innerHTML = li(c.pierden);
 }
 
 function tabla() {
@@ -243,6 +314,7 @@ function tabla() {
       <td class="${signo(a.pct_hoy)}">${a.pct_hoy == null ? '—' : (a.pct_hoy >= 0 ? '+' : '') + AR(a.pct_hoy, 2) + '%'}</td>
       <td class="${signo(a.resultado_usd)}" title="${a.mep_compra ? 'MEP de compra estimado: $ ' + AR(a.mep_compra, 2) : ''}">${conSigno(n => usd(n), a.resultado_usd)}</td>
       <td class="${signo(a.resultado_ars)}">${conSigno(ars, a.resultado_ars)}</td>
+      <td class="${signo(a.vs_bench_usd)}">${conSigno(n => usd(n), a.vs_bench_usd)}</td>
     </tr>`;
   }).join('');
 }

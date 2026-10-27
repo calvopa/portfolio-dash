@@ -90,3 +90,21 @@ def mep_en(fecha: date) -> float | None:
         return None
     i = bisect.bisect_right(fechas, fecha.isoformat()) - 1
     return valores[max(i, 0)]
+
+
+def _usa_serie(ticker: str) -> tuple[list[str], list[float]]:
+    """Cierres diarios en US$ de una acción/ETF de EE.UU. (data912, ajustados por dividendos)."""
+    d = _get(f"{config.DATA912_URL}/historical/usa_stocks/{ticker}", 12 * 3600) or {}
+    fechas, precios = d.get("dates") or [], d.get("prices") or []
+    return (fechas, precios) if len(fechas) == len(precios) else ([], [])
+
+
+def usa_en(ticker: str, fecha: date | None = None) -> float | None:
+    """Cierre del último día hábil <= fecha (o el último disponible si fecha es None)."""
+    fechas, precios = _usa_serie(ticker)
+    if not fechas:
+        return None
+    if fecha is None:
+        return precios[-1]
+    i = bisect.bisect_right(fechas, fecha.isoformat()) - 1
+    return precios[max(i, 0)]
