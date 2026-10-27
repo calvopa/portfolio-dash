@@ -85,6 +85,29 @@
   .cmp-listas li span:first-child { font-weight: 600; }
   #cmp-veredicto { font-size: 16px; line-height: 22px; margin-bottom: 6px; }
   #cmp-detalle { font-size: 13px; line-height: 19px; }
+  .reb-tipos { margin-top: 14px; display: grid; gap: 14px; }
+  .reb-fila { display: grid; grid-template-columns: 92px minmax(0, 1fr) 132px; align-items: center; gap: 12px; font-variant-numeric: tabular-nums; }
+  .reb-fila .n { font-weight: 600; }
+  .reb-fila .n small { display: block; font-weight: 400; font-size: 12px; color: var(--ink-200); }
+  .track { position: relative; height: 10px; background: var(--surface-hover); border-radius: var(--radius-pill); }
+  .track .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: var(--radius-pill); background: var(--brand-primary); }
+  .track .fill.fuera { background: var(--ink-300); }
+  .track .obj { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink-100); border-radius: 1px; }
+  .reb-fila .que { text-align: right; font-size: 12px; line-height: 16px; }
+  .reb-fila .que b { display: block; font-size: 13px; }
+  .reb-reglas { list-style: none; margin: 12px 0 0; padding: 0; }
+  .reb-reglas li { display: flex; gap: 10px; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--surface-hover); }
+  .reb-reglas li .ic { flex: none; width: 18px; text-align: center; font-weight: 600; }
+  .reb-reglas li .ic.ok { color: var(--up); } .reb-reglas li .ic.no { color: var(--danger); }
+  .reb-reglas li .tx { flex: 1; min-width: 0; } .reb-reglas li .tx small { display: block; color: var(--ink-200); font-size: 12px; }
+  .reb-reglas li .v { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .reb-h2 { margin-top: 22px !important; }
+  .reb-monto { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; font-weight: 600; }
+  .reb-monto input { width: 130px; font: 600 14px var(--font-sans); color: var(--ink-100); background: var(--surface-200);
+                     border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 8px 10px; }
+  .reb-monto input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+  @media (max-width: 640px) { .reb-fila { grid-template-columns: 80px minmax(0, 1fr) 104px; gap: 8px; }
+                              .reb-fila .n small { font-size: 11px; white-space: nowrap; } }
   .nota { font-size: 12px; color: var(--ink-200); margin-top: 16px; line-height: 18px; }
 </style>
 </head>
@@ -123,6 +146,22 @@
           <div><div class="kpi-label">Le ganaron al <span class="bm">S&amp;P 500</span></div><ul id="cmp-ganan"></ul></div>
           <div><div class="kpi-label">Rindieron menos que el <span class="bm">S&amp;P 500</span></div><ul id="cmp-pierden"></ul></div>
         </div>
+      </div>
+    </div>
+
+    <div class="grid2" id="reb" hidden>
+      <div class="card">
+        <h2>Rebalanceo: ¿dónde estás vs. tu objetivo?</h2>
+        <div class="caption" id="reb-sub">—</div>
+        <div id="reb-tipos" class="reb-tipos"></div>
+      </div>
+      <div class="card">
+        <h2>Reglas de diversificación</h2>
+        <ul id="reb-reglas" class="reb-reglas"></ul>
+        <h2 class="reb-h2">¿Vas a poner plata nueva?</h2>
+        <div class="caption">Te digo a qué tipo mandarla para acercarte al objetivo sin vender nada.</div>
+        <label class="reb-monto">US$ <input id="reb-monto" type="number" min="0" step="50" inputmode="decimal" placeholder="500"></label>
+        <ul id="reb-nueva" class="reb-reglas"></ul>
       </div>
     </div>
 
@@ -244,6 +283,7 @@ function pintar(d) {
   });
 
   pintarCmp(d.comparacion);
+  pintarReb(d.rebalanceo, t.usd);
 
   const ti = d.totales.sin_precio_vivo;
   document.getElementById('t-sub').textContent = `${d.activos.length} instrumentos` +
@@ -294,6 +334,53 @@ function pintarCmp(c) {
   document.getElementById('cmp-ganan').innerHTML = li(c.ganan);
   document.getElementById('cmp-pierden').innerHTML = li(c.pierden);
 }
+
+// Rebalanceo: barra = % actual (violeta si está dentro de la banda, gris si se corrió), línea blanca = objetivo.
+// El estado va también en texto ("en rango" / "corrido"), nunca solo en el color.
+let reb = null;
+function pintarReb(r, total) {
+  document.getElementById('reb').hidden = !r;
+  if (!r) return;
+  reb = {...r, total};
+  const corridos = r.tipos.filter(x => x.corrido).length;
+  document.getElementById('reb-sub').textContent = corridos
+    ? `${corridos} ${corridos === 1 ? 'tipo se corrió' : 'tipos se corrieron'} más de ${r.banda} puntos del objetivo (la línea blanca).`
+    : `Todo dentro de ±${r.banda} puntos del objetivo (la línea blanca). No hace falta tocar nada.`;
+  const escala = Math.max(...r.tipos.map(x => Math.max(x.actual, x.objetivo))) * 1.1;
+  document.getElementById('reb-tipos').innerHTML = r.tipos.map(x => {
+    const que = !x.corrido ? `<b>en rango</b>${conSigno(n => AR(n, 1), x.dif_pts)} pts`
+              : x.dif_usd > 0 ? `<b>corrido: falta</b>comprar ${usd(x.dif_usd)}` : `<b>corrido: sobra</b>${usd(-x.dif_usd)}`;
+    return `<div class="reb-fila" title="Hoy ${AR(x.actual, 1)}% · objetivo ${x.objetivo}%">
+      <div class="n">${esc(NOMBRE_TIPO[x.tipo] || x.tipo)}<small>${AR(x.actual, 1)}% → ${x.objetivo}%</small></div>
+      <div class="track"><div class="fill${x.corrido ? ' fuera' : ''}" style="width:${x.actual / escala * 100}%"></div>
+        <div class="obj" style="left:calc(${x.objetivo / escala * 100}% - 1px)"></div></div>
+      <div class="que">${que}</div></div>`;
+  }).join('');
+  document.getElementById('reb-reglas').innerHTML = r.reglas.map(x => `<li>
+      <span class="ic ${x.ok ? 'ok' : 'no'}" aria-hidden="true">${x.ok ? '✓' : '!'}</span>
+      <span class="tx">${esc(x.regla)}<small>${x.ok ? 'se cumple' : (x.dif_usd > 0 ? 'faltan ' + usd(x.dif_usd) : 'sobran ' + usd(-x.dif_usd))}</small></span>
+      <span class="v">hoy ${AR(x.actual, 1)}%</span></li>`).join('');
+  plataNueva();
+}
+
+// Reparte la plata nueva entre los tipos que están por debajo del objetivo (proporcional a lo que les falta
+// con el total ya sumado); si sobra, se reparte según el objetivo.
+function plataNueva() {
+  const ul = document.getElementById('reb-nueva');
+  const m = parseFloat(document.getElementById('reb-monto').value);
+  if (!reb || !(m > 0)) { ul.innerHTML = ''; return; }
+  const total = reb.total + m;
+  const falta = reb.tipos.map(x => Math.max(0, x.objetivo / 100 * total - x.actual / 100 * reb.total));
+  const sumaFalta = falta.reduce((a, b) => a + b, 0);
+  const asign = reb.tipos.map((x, i) => sumaFalta >= m ? m * falta[i] / sumaFalta
+                                                      : falta[i] + (m - sumaFalta) * x.objetivo / 100);
+  const indice = reb.reglas.find(x => x.regla.startsWith('Índice'));
+  ul.innerHTML = reb.tipos.map((x, i) => ({x, v: asign[i]})).filter(o => o.v >= 1).sort((a, b) => b.v - a.v)
+    .map(({x, v}) => `<li><span class="ic ok" aria-hidden="true">+</span>
+      <span class="tx">${esc(NOMBRE_TIPO[x.tipo] || x.tipo)}${x.tipo === 'Cedears' && indice && !indice.ok ? '<small>en SPY, para sumar índice</small>' : ''}</span>
+      <span class="v">${usd(v)}</span></li>`).join('');
+}
+document.getElementById('reb-monto').addEventListener('input', plataNueva);
 
 function tabla() {
   const k = orden.k, dir = orden.asc ? 1 : -1;

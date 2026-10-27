@@ -46,6 +46,14 @@ La columna `vs_bench_usd` de la tabla es `valor_usd - bench_usd`. Es exigente co
 dividendos reinvertidos y la cartera sin cupones/dividendos cobrados. Un CEDEAR de SPY puede salir distinto
 de 0 contra el SPY por la diferencia CCL/MEP y la fecha estimada.
 
+## Rebalanceo
+
+Objetivos por tipo y reglas de concentración en `config.py` (`OBJETIVOS`, `BANDA_REBALANCEO`, `INDICES`,
+`SEMIS`, `MIN_INDICE_PCT`, `MAX_ACCION_PCT`, `MAX_SEMIS_PCT`), acordados con Pablo el 26/10/2026:
+CEDEARs 50 / ONs 25 / FCI 15 / Bonos 7 / Acciones 3, banda ±5 pts; índice ≥25%, ninguna acción >10%,
+semiconductores ≤15%. `valuacion._rebalanceo()` arma el estado; la calculadora "plata nueva" es solo JS
+(reparte entre los tipos por debajo del objetivo, sin vender). Para cambiar objetivos: editar config + deploy.
+
 ## Infraestructura
 
 | Elemento | Valor |
@@ -85,6 +93,8 @@ DASH_PASSWORD=prueba DATA_DIR=/tmp/pdata /tmp/pv/bin/uvicorn app:app --port 8188
 | `static/index.html` | Página (Chart.js 4.4.1 de cdnjs, tema Panel Oscuro). En móvil la tabla deja solo Activo / Valor / Hoy / Resultado US$ |
 
 ## Pendientes / ideas
+
+- Editar los objetivos desde la página (hoy están en `config.py`).
 
 - Precio en vivo de FCI (CAFCI) — hoy usa el del import.
 - Importar "Movimientos" para costo exacto por operación y cupones/dividendos.

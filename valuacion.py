@@ -35,6 +35,41 @@ def _comparacion(con_costo: list[dict]) -> dict | None:
     }
 
 
+def _rebalanceo(activos: list[dict], por_tipo: dict[str, float], total: float) -> dict | None:
+    """Dónde está cada tipo vs. config.OBJETIVOS, y las reglas de concentración."""
+    if not total:
+        return None
+    tipos = []
+    for t in sorted(set(config.OBJETIVOS) | set(por_tipo), key=lambda t: -config.OBJETIVOS.get(t, 0)):
+        actual = por_tipo.get(t, 0) / total * 100
+        obj = config.OBJETIVOS.get(t, 0)
+        tipos.append({"tipo": t, "actual": actual, "objetivo": obj, "dif_pts": actual - obj,
+                      "dif_usd": (obj - actual) / 100 * total,  # >0 falta comprar, <0 sobra
+                      "corrido": abs(actual - obj) > config.BANDA_REBALANCEO})
+
+    def pct(a):
+        return a["peso"] * 100
+
+    variable = [a for a in activos if a["tipo"] in ("Cedears", "Acciones")]
+    indice = sum(pct(a) for a in variable if a["ticker"] in config.INDICES)
+    semis = sum(pct(a) for a in variable if a["ticker"] in config.SEMIS)
+    grandes = [a for a in variable if a["ticker"] not in config.INDICES and pct(a) > config.MAX_ACCION_PCT]
+    reglas = [
+        {"regla": f"Índice (SPY y similares) al menos {config.MIN_INDICE_PCT}%", "ok": indice >= config.MIN_INDICE_PCT,
+         "actual": indice, "dif_usd": max(0, config.MIN_INDICE_PCT - indice) / 100 * total},
+        {"regla": f"Semiconductores como máximo {config.MAX_SEMIS_PCT}%", "ok": semis <= config.MAX_SEMIS_PCT,
+         "actual": semis, "dif_usd": -max(0, semis - config.MAX_SEMIS_PCT) / 100 * total},
+    ] + [
+        {"regla": f"{a['ticker']} como máximo {config.MAX_ACCION_PCT}%", "ok": False,
+         "actual": pct(a), "dif_usd": -(pct(a) - config.MAX_ACCION_PCT) / 100 * total} for a in grandes
+    ]
+    if not grandes:
+        reglas.append({"regla": f"Ninguna acción sola arriba de {config.MAX_ACCION_PCT}%", "ok": True,
+                       "actual": max((pct(a) for a in variable if a["ticker"] not in config.INDICES), default=0),
+                       "dif_usd": 0})
+    return {"banda": config.BANDA_REBALANCEO, "tipos": tipos, "reglas": reglas}
+
+
 def valuar(con) -> dict:
     imp, filas = ultima_tenencia(con)
     mep = prices.mep_hoy()
@@ -111,6 +146,7 @@ def valuar(con) -> dict:
             "sin_precio_vivo": [a["ticker"] for a in activos if a["precio_origen"] == "import"],
         },
         "comparacion": _comparacion(con_costo),
+        "rebalanceo": _rebalanceo(activos, por_tipo, tot_usd),
         "por_tipo": sorted(({"tipo": k, "usd": v, "peso": v / tot_usd if tot_usd else 0}
                             for k, v in por_tipo.items()), key=lambda x: -x["usd"]),
     }

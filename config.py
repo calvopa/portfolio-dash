@@ -14,6 +14,17 @@ MEP_HIST_URL = os.getenv("MEP_HIST_URL", "https://api.argentinadatos.com/v1/coti
 # Contra qué se compara la cartera ("¿te conviene?"): un ETF de EE.UU. con histórico en data912
 BENCHMARK = os.getenv("BENCHMARK", "SPY")
 
+# Cartera objetivo por tipo de Balanz (% del total en US$), acordada con Pablo el 26/10/2026.
+# Un tipo se marca "corrido" si se aleja más de BANDA_REBALANCEO puntos.
+OBJETIVOS = {"Cedears": 50, "Corporativos": 25, "Bonos": 7, "Fondos": 15, "Acciones": 3}
+BANDA_REBALANCEO = 5
+# Reglas dentro de la cartera (en % del total)
+INDICES = {"SPY", "QQQ", "VOO", "IVV", "DIA", "IWM", "EEM", "EWZ", "VEA", "VTI", "ACWI"}
+SEMIS = {"AMD", "NVDA", "TSM", "INTC", "AVGO", "QCOM", "MU", "ASML", "TXN", "ARM", "AMAT", "SMH"}
+MIN_INDICE_PCT = 25
+MAX_ACCION_PCT = 10
+MAX_SEMIS_PCT = 15
+
 PRICE_CACHE_SECONDS = int(os.getenv("PRICE_CACHE_SECONDS", "300"))
 SNAPSHOT_MINUTES = int(os.getenv("SNAPSHOT_MINUTES", "15"))
 MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", "2000000"))
