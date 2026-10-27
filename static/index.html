@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portfolio Balanz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  /* Tema Panel Oscuro (spec: Documentos/Perso/Desarrollo/Temas/tema-panel-oscuro.md) */
+  :root {
+    --surface-100: #0a0a0c; --surface-200: #121214; --surface-300: #1b1b1f; --surface-hover: #222226;
+    --border-subtle: #2a2a2f;
+    --ink-100: #f5f5f7; --ink-200: #b8b8c0; --ink-300: #7a7a84;
+    --brand-primary: #7c5cff; --brand-primary-hover: #9177ff; --brand-primary-ink: #ffffff;
+    --accent-soft: #2a2140; --danger: #ff4d5e; --focus-ring: #7c5cff;
+    --up: #3ecf8e;  /* solo para la flecha ▲ (el número va en tinta, con signo) */
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px; --radius-pill: 999px;
+    --shadow-card: 0 1px 0 rgba(255,255,255,0.03) inset, 0 8px 24px rgba(0,0,0,0.35);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--surface-100); color: var(--ink-100); font-family: var(--font-sans);
+         font-size: 14px; line-height: 20px; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+  h1 { font-size: 20px; line-height: 26px; font-weight: 600; margin: 0; }
+  .caption { font-size: 12px; line-height: 16px; color: var(--ink-200); }
+  .muted { color: var(--ink-200); }
+  .btn { display: inline-flex; align-items: center; gap: 8px; font: 600 14px var(--font-sans); border: none;
+         border-radius: var(--radius-md); padding: 10px 16px; cursor: pointer; background: var(--brand-primary);
+         color: var(--brand-primary-ink); transition: background .15s ease; }
+  .btn:hover { background: var(--brand-primary-hover); }
+  .btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+  .card { background: var(--surface-300); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg);
+          box-shadow: var(--shadow-card); padding: 20px 24px; min-width: 0; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 16px; }
+  .kpi-label { font-size: 12px; color: var(--ink-200); margin-bottom: 6px; }
+  .kpi-value { font-size: 28px; line-height: 34px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .kpi-sub { font-size: 12px; color: var(--ink-200); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+  .card h2 { font-size: 14px; font-weight: 600; margin: 0 0 4px; }
+  .chart-box { position: relative; height: 260px; margin-top: 12px; }
+  .up::before { content: "▲ "; color: var(--up); font-size: 10px; }
+  .down::before { content: "▼ "; color: var(--danger); font-size: 10px; }
+  .badge { display: inline-flex; font-size: 11px; font-weight: 600; line-height: 16px; padding: 1px 8px;
+           border-radius: var(--radius-pill); background: var(--accent-soft); color: var(--brand-primary-hover); }
+  .table-wrap { overflow-x: auto; margin-top: 12px; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th { text-align: right; font-size: 12px; font-weight: 600; color: var(--ink-200); padding: 8px 10px;
+       border-bottom: 1px solid var(--border-subtle); cursor: pointer; white-space: nowrap; user-select: none; }
+  th:hover { color: var(--ink-100); }
+  td { text-align: right; padding: 10px; border-bottom: 1px solid var(--surface-hover); white-space: nowrap; }
+  th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+  tbody tr:hover { background: var(--surface-hover); }
+  .tk { font-weight: 600; }
+  .desc { color: var(--ink-200); font-size: 12px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+  .vacio { text-align: center; padding: 64px 24px; }
+  .vacio h2 { font-size: 20px; margin-bottom: 8px; }
+  #drop { position: fixed; inset: 0; background: rgba(10,10,12,.85); border: 2px dashed var(--brand-primary);
+          display: none; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; z-index: 10; }
+  #drop.on { display: flex; }
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface-300);
+           border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 12px 18px;
+           box-shadow: var(--shadow-card); display: none; z-index: 11; max-width: 90vw; }
+  /* Móvil: primera columna fija, sin columna Tipo, descripción más corta */
+  @media (max-width: 640px) {
+    /* se queda con Activo, Valor US$, Hoy y Resultado US$ */
+    th:nth-child(2), td:nth-child(2), th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4),
+    th:nth-child(6), td:nth-child(6), th:nth-child(9), td:nth-child(9) { display: none; }
+    th, td { padding: 8px 4px; }
+    .desc { max-width: 92px; }
+    table { font-size: 13px; }
+    td:first-child, th:first-child { position: sticky; left: 0; background: var(--surface-300); z-index: 1; }
+    .card { padding: 16px 10px; }
+    .wrap { padding-left: 12px; padding-right: 12px; }
+  }
+  .nota { font-size: 12px; color: var(--ink-200); margin-top: 16px; line-height: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Portfolio · Balanz</h1>
+      <div class="caption" id="sub">cargando…</div>
+    </div>
+    <label class="btn" tabindex="0">
+      <svg width="16" height="16" viewBox="0 0 24 24" class="icon" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>
+      Importar tenencia
+      <input type="file" id="archivo" accept=".xlsx" hidden>
+    </label>
+  </header>
+
+  <div id="contenido" hidden>
+    <div class="kpis">
+      <div class="card"><div class="kpi-label">Valor total</div><div class="kpi-value" id="k-usd">—</div><div class="kpi-sub" id="k-ars">—</div></div>
+      <div class="card"><div class="kpi-label">Hoy</div><div class="kpi-value" id="k-hoy">—</div><div class="kpi-sub" id="k-hoy-pct">—</div></div>
+      <div class="card"><div class="kpi-label">Resultado en dólares <span class="badge">aprox.</span></div><div class="kpi-value" id="k-res">—</div><div class="kpi-sub" id="k-res-pct">—</div></div>
+      <div class="card"><div class="kpi-label">Resultado en pesos</div><div class="kpi-value" id="k-res-ars">—</div><div class="kpi-sub">nominal: incluye la suba del dólar</div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h2>Distribución por tipo</h2>
+        <div class="caption">% del valor total, en dólares</div>
+        <div class="chart-box"><canvas id="ch-tipo" aria-label="Distribución por tipo de instrumento"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Evolución del valor total</h2>
+        <div class="caption" id="hist-sub">en dólares MEP, un punto por día</div>
+        <div class="chart-box"><canvas id="ch-hist" aria-label="Evolución del valor total"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Tenencias</h2>
+      <div class="caption" id="t-sub">—</div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th data-k="ticker">Activo</th><th data-k="tipo">Tipo</th><th data-k="cantidad">Cantidad</th>
+          <th data-k="precio">Precio</th><th data-k="valor_usd">Valor US$</th><th data-k="peso">% cartera</th>
+          <th data-k="pct_hoy">Hoy</th><th data-k="resultado_usd">Resultado US$</th><th data-k="resultado_ars">Resultado $</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table></div>
+      <div class="nota">
+        <b>Resultado en dólares (aprox.):</b> costo en pesos de Balanz convertido al dólar MEP del día de compra estimado
+        (fecha de la tenencia menos los "días promedio de tenencia"). Si compraste en varias veces, es una aproximación.
+        No incluye cupones ni dividendos cobrados. <b>Resultado en pesos:</b> el que muestra Balanz, nominal.
+        Precios: data912 (con ~20 min de demora en horario de mercado); los marcados <span class="badge">import</span>
+        usan el precio del archivo importado.
+      </div>
+    </div>
+  </div>
+
+  <div id="vacio" class="card vacio" hidden>
+    <h2>Todavía no cargaste tu tenencia</h2>
+    <div class="caption">En Balanz exportá <b>Mis Instrumentos</b> a Excel y subilo con <b>Importar tenencia</b>,<br>o arrastrá el archivo a esta página.</div>
+  </div>
+</div>
+<div id="drop">Soltá el Excel de Balanz para importarlo</div>
+<div id="toast"></div>
+
+<script>
+const AR = (n, d = 0) => n == null ? '—' : n.toLocaleString('es-AR', {minimumFractionDigits: d, maximumFractionDigits: d});
+const usd = (n, d = 0) => n == null ? '—' : 'US$ ' + AR(n, d);
+const ars = n => n == null ? '—' : '$ ' + AR(n);
+const pct = (n, d = 1) => n == null ? '—' : (n >= 0 ? '+' : '') + AR(n * 100, d) + '%';
+// Nombres cortos para el gráfico (Balanz dice "Corporativos" a las ONs)
+const NOMBRE_TIPO = {Corporativos: 'ONs', Fondos: 'FCI'};
+const signo = n => n == null ? '' : (n >= 0 ? 'up' : 'down');
+const conSigno = (f, n) => n == null ? '—' : (n >= 0 ? '+' : '−') + f(Math.abs(n)).replace(/^(US\$ |\$ )/, '$1');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const css = getComputedStyle(document.documentElement);
+const C = k => css.getPropertyValue(k).trim();
+Chart.defaults.color = C('--ink-200');
+Chart.defaults.font.family = C('--font-sans');
+Chart.defaults.font.size = 11;
+const tooltip = { backgroundColor: C('--surface-200'), borderColor: C('--border-subtle'), borderWidth: 1,
+                  titleColor: C('--ink-100'), bodyColor: C('--ink-200'), padding: 10, cornerRadius: 8, displayColors: false };
+
+let chTipo, chHist, datos, orden = {k: 'valor_usd', asc: false};
+
+function toast(msg, ms = 4000) {
+  const t = document.getElementById('toast'); t.textContent = msg; t.style.display = 'block';
+  clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', ms);
+}
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) { let m = r.statusText; try { m = (await r.json()).detail || m; } catch (e) {} throw new Error(m); }
+  return r.json();
+}
+
+function kpi(id, html, cls) { const el = document.getElementById(id); el.innerHTML = html; el.className = el.className.replace(/ ?(up|down)/g, '') + (cls ? ' ' + cls : ''); }
+
+function pintar(d) {
+  datos = d;
+  const vacio = !d.import;
+  document.getElementById('vacio').hidden = !vacio;
+  document.getElementById('contenido').hidden = vacio;
+  const ahora = new Date().toLocaleTimeString('es-AR', {hour: '2-digit', minute: '2-digit'});
+  if (vacio) { document.getElementById('sub').textContent = `MEP $ ${AR(d.mep, 2)} · ${ahora}`; return; }
+  const t = d.totales, f = d.import.fecha.split('-').reverse().join('/');
+  document.getElementById('sub').textContent = `Tenencia del ${f} · MEP $ ${AR(d.mep, 2)} · actualizado ${ahora}`;
+
+  kpi('k-usd', usd(t.usd));
+  document.getElementById('k-ars').textContent = ars(t.ars);
+  kpi('k-hoy', conSigno(n => usd(n), t.hoy_usd), signo(t.hoy_usd));
+  document.getElementById('k-hoy-pct').textContent = pct(t.hoy_pct, 2) + ' vs. cierre anterior';
+  kpi('k-res', conSigno(n => usd(n), t.resultado_usd), signo(t.resultado_usd));
+  document.getElementById('k-res-pct').textContent = pct(t.resultado_pct) + ' sobre lo invertido';
+  const resArs = d.activos.reduce((a, x) => a + (x.resultado_ars || 0), 0);
+  kpi('k-res-ars', conSigno(ars, resArs), signo(resArs));
+
+  // Distribución por tipo: una serie (barras horizontales), etiquetas directas con el %
+  const pt = d.por_tipo;
+  if (chTipo) chTipo.destroy();
+  chTipo = new Chart(document.getElementById('ch-tipo'), {
+    type: 'bar',
+    data: { labels: pt.map(x => NOMBRE_TIPO[x.tipo] || x.tipo), datasets: [{ data: pt.map(x => x.peso * 100), backgroundColor: C('--brand-primary'),
+            hoverBackgroundColor: C('--brand-primary-hover'), borderRadius: 4, borderSkipped: 'start', barThickness: 18 }] },
+    options: { indexAxis: 'y', maintainAspectRatio: false, responsive: true,
+      layout: { padding: { right: 48 } },
+      plugins: { legend: { display: false },
+        tooltip: { ...tooltip, callbacks: { label: c => `${AR(c.raw, 1)}% · ${usd(pt[c.dataIndex].usd)}` } } },
+      scales: { x: { display: false, max: Math.max(...pt.map(x => x.peso * 100)) * 1.05 },
+                y: { grid: { display: false }, border: { display: false }, ticks: { color: C('--ink-100') },
+                     afterFit: s => { s.width = Math.max(s.width, 72); } } } },
+    plugins: [{ id: 'etiquetas', afterDatasetsDraw(ch) {
+      const {ctx} = ch; ctx.save(); ctx.fillStyle = C('--ink-200'); ctx.font = `600 11px ${C('--font-sans')}`; ctx.textBaseline = 'middle';
+      ch.getDatasetMeta(0).data.forEach((b, i) => ctx.fillText(AR(pt[i].peso * 100, 1) + '%', b.x + 8, b.y));
+      ctx.restore(); } }],
+  });
+
+  const ti = d.totales.sin_precio_vivo;
+  document.getElementById('t-sub').textContent = `${d.activos.length} instrumentos` +
+    (ti.length ? ` · sin precio en vivo: ${ti.join(', ')} (se usa el del archivo)` : ' · todos con precio en vivo');
+  tabla();
+}
+
+function tabla() {
+  const k = orden.k, dir = orden.asc ? 1 : -1;
+  const filas = [...datos.activos].sort((a, b) => {
+    const x = a[k], y = b[k];
+    if (x == null) return 1; if (y == null) return -1;
+    return (typeof x === 'string' ? x.localeCompare(y) : x - y) * dir;
+  });
+  document.getElementById('tbody').innerHTML = filas.map(a => {
+    const dec = a.precio < 10 ? 4 : 2;
+    return `<tr>
+      <td><div class="tk">${esc(a.ticker)}</div><div class="desc" title="${esc(a.descripcion)}">${esc(a.descripcion)}</div></td>
+      <td class="muted">${esc(a.tipo)}</td>
+      <td>${AR(a.cantidad, a.cantidad % 1 ? 2 : 0)}</td>
+      <td>${a.moneda_valor === 'USD' ? 'US$ ' : '$ '}${AR(a.precio, dec)} ${a.precio_origen === 'import' ? '<span class="badge">import</span>' : ''}</td>
+      <td>${usd(a.valor_usd)}</td>
+      <td>${AR(a.peso * 100, 1)}%</td>
+      <td class="${signo(a.pct_hoy)}">${a.pct_hoy == null ? '—' : (a.pct_hoy >= 0 ? '+' : '') + AR(a.pct_hoy, 2) + '%'}</td>
+      <td class="${signo(a.resultado_usd)}" title="${a.mep_compra ? 'MEP de compra estimado: $ ' + AR(a.mep_compra, 2) : ''}">${conSigno(n => usd(n), a.resultado_usd)}</td>
+      <td class="${signo(a.resultado_ars)}">${conSigno(ars, a.resultado_ars)}</td>
+    </tr>`;
+  }).join('');
+}
+
+document.querySelectorAll('th[data-k]').forEach(th => th.addEventListener('click', () => {
+  orden = {k: th.dataset.k, asc: orden.k === th.dataset.k ? !orden.asc : th.dataset.k === 'ticker' || th.dataset.k === 'tipo'};
+  tabla();
+}));
+
+function pintarHist(h) {
+  const sub = document.getElementById('hist-sub');
+  sub.textContent = h.length < 2
+    ? 'en dólares MEP, un punto por día — se va armando desde la primera importación'
+    : `en dólares MEP, un punto por día desde el ${h[0].fecha.split('-').reverse().join('/')}`;
+  if (chHist) chHist.destroy();
+  chHist = new Chart(document.getElementById('ch-hist'), {
+    type: 'line',
+    data: { labels: h.map(x => x.fecha.slice(8, 10) + '/' + x.fecha.slice(5, 7)),
+            datasets: [{ data: h.map(x => x.usd), borderColor: C('--brand-primary'), backgroundColor: C('--accent-soft'),
+                         fill: true, borderWidth: 2, tension: 0.25, pointRadius: h.length < 15 ? 4 : 0, pointHoverRadius: 5,
+                         pointBackgroundColor: C('--brand-primary'), pointBorderColor: C('--surface-300'), pointBorderWidth: 2 }] },
+    options: { maintainAspectRatio: false, responsive: true, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false },
+        tooltip: { ...tooltip, callbacks: { label: c => `${usd(c.raw)} · MEP $ ${AR(h[c.dataIndex].mep, 2)}` } } },
+      scales: { x: { grid: { display: false }, border: { display: false }, ticks: { maxTicksLimit: 8 } },
+                y: { grid: { color: C('--surface-hover') }, border: { display: false },
+                     ticks: { callback: v => 'US$ ' + AR(v / 1000, 1) + 'k', maxTicksLimit: 5 } } } },
+  });
+}
+
+async function refrescar() {
+  try {
+    const [d, h] = await Promise.all([api('/api/portfolio'), api('/api/historia')]);
+    pintar(d); if (d.import) pintarHist(h);
+  } catch (e) { toast('No pude actualizar: ' + e.message); }
+}
+
+async function importar(file) {
+  if (!file) return;
+  if (!/\.xlsx$/i.test(file.name)) { toast('Tiene que ser el Excel (.xlsx) de Balanz'); return; }
+  const fd = new FormData(); fd.append('archivo', file);
+  toast('Importando…', 20000);
+  try {
+    const r = await api('/api/import', {method: 'POST', body: fd});
+    toast(`Listo: ${r.instrumentos} instrumentos, tenencia del ${r.fecha.split('-').reverse().join('/')}`);
+    refrescar();
+  } catch (e) { toast('Error: ' + e.message, 8000); }
+}
+
+document.getElementById('archivo').addEventListener('change', e => { importar(e.target.files[0]); e.target.value = ''; });
+const drop = document.getElementById('drop');
+window.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('on'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('on'));
+window.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('on'); importar(e.dataTransfer.files[0]); });
+
+refrescar();
+setInterval(refrescar, 5 * 60 * 1000);
+</script>
+</body>
+</html>

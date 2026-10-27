@@ -1,0 +1,14 @@
+services:
+  portfolio:
+    build: .
+    container_name: portfolio-dash
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8088:8088"
+    volumes:
+      - portfolio_data:/data
+
+volumes:
+  portfolio_data:
+    name: portfolio_data
