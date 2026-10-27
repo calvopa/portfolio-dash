@@ -13,6 +13,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from pydantic import BaseModel, Field
 
 import balanz
 import config
@@ -86,6 +87,22 @@ def api_historia(_: None = Depends(require_auth)):
     for r in con.execute("SELECT * FROM historia ORDER BY ts"):
         por_dia[r["ts"][:10]] = {"fecha": r["ts"][:10], "usd": r["total_usd"], "ars": r["total_ars"], "mep": r["mep"]}
     return list(por_dia.values())
+
+
+class Efectivo(BaseModel):
+    usd: float = Field(0, ge=0, le=1e9)
+    ars: float = Field(0, ge=0, le=1e12)
+
+
+@app.put("/api/efectivo")
+def api_efectivo(e: Efectivo, _: None = Depends(require_auth)):
+    """Efectivo sin invertir en la cuenta: el Excel de Balanz no lo trae, se carga a mano."""
+    with _lock:
+        con.execute("INSERT OR REPLACE INTO efectivo VALUES (1, ?, ?, ?)",
+                    (e.usd, e.ars, datetime.now(ART).isoformat(timespec="seconds")))
+        con.commit()
+    foto()
+    return valuacion.efectivo(con)
 
 
 @app.post("/api/import")

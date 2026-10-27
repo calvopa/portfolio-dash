@@ -16,7 +16,9 @@ BENCHMARK = os.getenv("BENCHMARK", "SPY")
 
 # Cartera objetivo por tipo de Balanz (% del total en US$), acordada con Pablo el 26/10/2026.
 # Un tipo se marca "corrido" si se aleja más de BANDA_REBALANCEO puntos.
-OBJETIVOS = {"Cedears": 50, "Corporativos": 25, "Bonos": 7, "Fondos": 15, "Acciones": 3}
+OBJETIVOS = {"Cedears": 50, "Corporativos": 25, "Bonos": 7, "Liquidez": 15, "Acciones": 3}
+# Tipos que se suman en un mismo objetivo: el FCI dólar y el efectivo cumplen la misma función
+GRUPOS = {"Fondos": "Liquidez", "Efectivo": "Liquidez"}
 BANDA_REBALANCEO = 5
 # Reglas dentro de la cartera (en % del total)
 INDICES = {"SPY", "QQQ", "VOO", "IVV", "DIA", "IWM", "EEM", "EWZ", "VEA", "VTI", "ACWI"}

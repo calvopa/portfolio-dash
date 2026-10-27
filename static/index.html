@@ -108,6 +108,16 @@
   .reb-monto input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
   @media (max-width: 640px) { .reb-fila { grid-template-columns: 80px minmax(0, 1fr) 104px; gap: 8px; }
                               .reb-fila .n small { font-size: 11px; white-space: nowrap; } }
+  .acciones { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn-sec { background: var(--surface-300); color: var(--ink-100); border: 1px solid var(--border-subtle); }
+  .btn-sec:hover { background: var(--surface-hover); }
+  .ef-panel { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+  .ef-panel[hidden] { display: none; }
+  .ef-panel > div { flex: 1 1 280px; }
+  .ef-panel label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--ink-200); }
+  .ef-panel input { width: 150px; font: 600 14px var(--font-sans); color: var(--ink-100); background: var(--surface-200);
+                    border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 9px 10px; }
+  .ef-panel input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
   .nota { font-size: 12px; color: var(--ink-200); margin-top: 16px; line-height: 18px; }
 </style>
 </head>
@@ -118,12 +128,26 @@
       <h1>Portfolio · Balanz</h1>
       <div class="caption" id="sub">cargando…</div>
     </div>
+    <div class="acciones">
+    <button class="btn btn-sec" id="ef-abrir" type="button" aria-expanded="false" aria-controls="ef-panel">Efectivo</button>
     <label class="btn" tabindex="0">
       <svg width="16" height="16" viewBox="0 0 24 24" class="icon" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>
       Importar tenencia
       <input type="file" id="archivo" accept=".xlsx" hidden>
     </label>
+    </div>
   </header>
+
+  <form class="card ef-panel" id="ef-panel" hidden>
+    <div>
+      <h2>Efectivo en la cuenta</h2>
+      <div class="caption">El Excel de Balanz no trae la plata sin invertir: cargala acá cuando cambie.
+        Cuenta como liquidez junto con el FCI. <span id="ef-act"></span></div>
+    </div>
+    <label>Dólares <input id="ef-usd" type="number" min="0" step="any" inputmode="decimal"></label>
+    <label>Pesos <input id="ef-ars" type="number" min="0" step="any" inputmode="decimal"></label>
+    <button class="btn" type="submit">Guardar</button>
+  </form>
 
   <div id="contenido" hidden>
     <div class="kpis">
@@ -215,7 +239,7 @@ const usd = (n, d = 0) => n == null ? '—' : 'US$ ' + AR(n, d);
 const ars = n => n == null ? '—' : '$ ' + AR(n);
 const pct = (n, d = 1) => n == null ? '—' : (n >= 0 ? '+' : '') + AR(n * 100, d) + '%';
 // Nombres cortos para el gráfico (Balanz dice "Corporativos" a las ONs)
-const NOMBRE_TIPO = {Corporativos: 'ONs', Fondos: 'FCI'};
+const NOMBRE_TIPO = {Corporativos: 'ONs', Fondos: 'FCI', Liquidez: 'FCI + efectivo'};
 const signo = n => n == null ? '' : (n >= 0 ? 'up' : 'down');
 const conSigno = (f, n) => n == null ? '—' : (n >= 0 ? '+' : '−') + f(Math.abs(n)).replace(/^(US\$ |\$ )/, '$1');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -282,6 +306,7 @@ function pintar(d) {
       ctx.restore(); } }],
   });
 
+  pintarEf(d.efectivo);
   pintarCmp(d.comparacion);
   pintarReb(d.rebalanceo, t.usd);
 
@@ -334,6 +359,31 @@ function pintarCmp(c) {
   document.getElementById('cmp-ganan').innerHTML = li(c.ganan);
   document.getElementById('cmp-pierden').innerHTML = li(c.pierden);
 }
+
+function pintarEf(e) {
+  const panel = document.getElementById('ef-panel');
+  if (!panel.hidden) return;  // no pisar lo que se está escribiendo
+  document.getElementById('ef-usd').value = e.usd || '';
+  document.getElementById('ef-ars').value = e.ars || '';
+  document.getElementById('ef-act').textContent = e.actualizado
+    ? `Última carga: ${new Date(e.actualizado).toLocaleDateString('es-AR')}.` : '';
+}
+document.getElementById('ef-abrir').addEventListener('click', e => {
+  const panel = document.getElementById('ef-panel');
+  panel.hidden = !panel.hidden; e.currentTarget.setAttribute('aria-expanded', String(!panel.hidden));
+  if (!panel.hidden) document.getElementById('ef-usd').focus();
+});
+document.getElementById('ef-panel').addEventListener('submit', async e => {
+  e.preventDefault();
+  const num = id => parseFloat(document.getElementById(id).value) || 0;
+  try {
+    await api('/api/efectivo', {method: 'PUT', headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({usd: num('ef-usd'), ars: num('ef-ars')})});
+    document.getElementById('ef-panel').hidden = true;
+    document.getElementById('ef-abrir').setAttribute('aria-expanded', 'false');
+    toast('Efectivo guardado'); refrescar();
+  } catch (err) { toast('Error: ' + err.message, 8000); }
+});
 
 // Rebalanceo: barra = % actual (violeta si está dentro de la banda, gris si se corrió), línea blanca = objetivo.
 // El estado va también en texto ("en rango" / "corrido"), nunca solo en el color.
@@ -395,7 +445,7 @@ function tabla() {
       <td><div class="tk">${esc(a.ticker)}</div><div class="desc" title="${esc(a.descripcion)}">${esc(a.descripcion)}</div></td>
       <td class="muted">${esc(a.tipo)}</td>
       <td>${AR(a.cantidad, a.cantidad % 1 ? 2 : 0)}</td>
-      <td>${a.moneda_valor === 'USD' ? 'US$ ' : '$ '}${AR(a.precio, dec)} ${a.precio_origen === 'import' ? '<span class="badge">import</span>' : ''}</td>
+      <td>${a.precio == null ? '<span class="badge">manual</span>' : (a.moneda_valor === 'USD' ? 'US$ ' : '$ ') + AR(a.precio, dec) + (a.precio_origen === 'import' ? ' <span class="badge">import</span>' : '')}</td>
       <td>${usd(a.valor_usd)}</td>
       <td>${AR(a.peso * 100, 1)}%</td>
       <td class="${signo(a.pct_hoy)}">${a.pct_hoy == null ? '—' : (a.pct_hoy >= 0 ? '+' : '') + AR(a.pct_hoy, 2) + '%'}</td>

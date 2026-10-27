@@ -13,6 +13,10 @@ CREATE TABLE IF NOT EXISTS tenencias (
     cantidad REAL, precio REAL, ppc REAL, valor REAL, costo REAL, dias REAL, moneda_valor TEXT,
     PRIMARY KEY (import_id, ticker)
 );
+CREATE TABLE IF NOT EXISTS efectivo (   -- plata sin invertir en la cuenta (el Excel de Balanz no la trae)
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    usd REAL NOT NULL DEFAULT 0, ars REAL NOT NULL DEFAULT 0, actualizado TEXT
+);
 CREATE TABLE IF NOT EXISTS historia (
     ts TEXT PRIMARY KEY,          -- ISO, hora ART
     total_ars REAL, total_usd REAL, mep REAL, import_id INTEGER

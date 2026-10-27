@@ -13,6 +13,11 @@ def ultima_tenencia(con) -> tuple[dict | None, list[dict]]:
     return dict(imp), [dict(f) for f in filas]
 
 
+def efectivo(con) -> dict:
+    r = con.execute("SELECT usd, ars, actualizado FROM efectivo WHERE id=1").fetchone()
+    return dict(r) if r else {"usd": 0.0, "ars": 0.0, "actualizado": None}
+
+
 def _comparacion(con_costo: list[dict]) -> dict | None:
     """Lo invertido (en US$ a la fecha de cada compra) vs. qué valdría hoy en cada alternativa.
     Solo cuenta activos con benchmark, para que las tres cifras salgan de la misma plata."""
@@ -39,6 +44,11 @@ def _rebalanceo(activos: list[dict], por_tipo: dict[str, float], total: float) -
     """Dónde está cada tipo vs. config.OBJETIVOS, y las reglas de concentración."""
     if not total:
         return None
+    agrupado: dict[str, float] = {}
+    for t, v in por_tipo.items():
+        g = config.GRUPOS.get(t, t)
+        agrupado[g] = agrupado.get(g, 0) + v
+    por_tipo = agrupado
     tipos = []
     for t in sorted(set(config.OBJETIVOS) | set(por_tipo), key=lambda t: -config.OBJETIVOS.get(t, 0)):
         actual = por_tipo.get(t, 0) / total * 100
@@ -122,6 +132,17 @@ def valuar(con) -> dict:
             "dias": f["dias"],
         })
 
+    ef = efectivo(con)
+    if ef["usd"] or ef["ars"]:
+        en_usd = ef["usd"] + (ef["ars"] / mep if mep else 0)
+        activos.append({
+            "ticker": "Efectivo", "tipo": "Efectivo", "descripcion": "Disponible en la cuenta (cargado a mano)",
+            "cantidad": None, "ppc": None, "moneda_valor": "USD", "precio": None, "precio_origen": "manual",
+            "pct_hoy": None, "valor_ars": en_usd * mep if mep else None, "valor_usd": en_usd, "hoy_usd": 0,
+            "resultado_ars": None, "resultado_usd": None, "costo_usd": None, "mep_compra": None, "dias": None,
+            "fecha_compra": None, "bench_usd": None, "vs_bench_usd": None,
+        })
+
     tot_usd = sum(a["valor_usd"] or 0 for a in activos)
     for a in activos:
         a["peso"] = (a["valor_usd"] or 0) / tot_usd if tot_usd else 0
@@ -145,6 +166,7 @@ def valuar(con) -> dict:
             "resultado_pct": sum(a["resultado_usd"] for a in con_costo) / costo_tot if costo_tot else None,
             "sin_precio_vivo": [a["ticker"] for a in activos if a["precio_origen"] == "import"],
         },
+        "efectivo": ef,
         "comparacion": _comparacion(con_costo),
         "rebalanceo": _rebalanceo(activos, por_tipo, tot_usd),
         "por_tipo": sorted(({"tipo": k, "usd": v, "peso": v / tot_usd if tot_usd else 0}
